@@ -1,0 +1,6 @@
+{
+  "name": "Free Song Player",
+  "description": "Stream, search, and listen to free songs, top charts, live audio radio, lyrics, equalizer, and custom playlists with a Flutter-styled interface.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
