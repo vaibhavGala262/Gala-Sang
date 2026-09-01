@@ -29,7 +29,6 @@ interface MusicPlayerContextType {
   activeTab: ActiveTab;
   isNowPlayingExpanded: boolean;
   isEqualizerOpen: boolean;
-  isFlutterFrameMode: boolean;
   searchQuery: string;
   searchResults: Track[];
   isSearching: boolean;
@@ -64,7 +63,6 @@ interface MusicPlayerContextType {
   setActiveTab: (tab: ActiveTab) => void;
   setIsNowPlayingExpanded: (val: boolean) => void;
   setIsEqualizerOpen: (val: boolean) => void;
-  setIsFlutterFrameMode: (val: boolean) => void;
   setSearchQuery: (query: string) => void;
   performSearch: (query: string) => Promise<void>;
   addToQueue: (track: Track) => void;
@@ -233,7 +231,6 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
   const [isNowPlayingExpanded, setIsNowPlayingExpanded] = useState<boolean>(false);
   const [isEqualizerOpen, setIsEqualizerOpen] = useState<boolean>(false);
-  const [isFlutterFrameMode, setIsFlutterFrameMode] = useState<boolean>(false);
 
   // Search State
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -859,7 +856,6 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         activeTab,
         isNowPlayingExpanded,
         isEqualizerOpen,
-        isFlutterFrameMode,
         searchQuery,
         searchResults,
         isSearching,
@@ -893,7 +889,6 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setActiveTab,
         setIsNowPlayingExpanded,
         setIsEqualizerOpen,
-        setIsFlutterFrameMode,
         setSearchQuery,
         performSearch,
         addToQueue,

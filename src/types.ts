@@ -47,7 +47,7 @@ export interface EqualizerPreset {
   bassBoost?: number;
 }
 
-export type ActiveTab = 'home' | 'search' | 'library' | 'radio' | 'local' | 'flutter_code';
+export type ActiveTab = 'home' | 'search' | 'library' | 'radio' | 'local';
 
 export interface SleepTimerState {
   active: boolean;

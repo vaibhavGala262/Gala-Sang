@@ -30,7 +30,6 @@ export const PlayerBar: React.FC = () => {
     repeatMode,
     isShuffled,
     visualizerMode,
-    isFlutterFrameMode,
     togglePlay,
     nextTrack,
     previousTrack,
@@ -52,9 +51,7 @@ export const PlayerBar: React.FC = () => {
   return (
     <div
       id="bottom-player-bar"
-      className={`fixed bottom-0 z-40 bg-[#0a0a0a]/95 backdrop-blur-2xl border-t border-white/10 shadow-2xl transition-all duration-300 ${
-        isFlutterFrameMode ? 'w-full max-w-[420px] left-1/2 -translate-x-1/2 rounded-b-3xl' : 'left-0 right-0'
-      }`}
+      className="fixed bottom-0 z-40 bg-[#0a0a0a]/95 backdrop-blur-2xl border-t border-white/10 shadow-2xl transition-all duration-300 left-0 right-0"
     >
       {/* Top Scrub Timeline (Full Width Line) */}
       <div className="relative group w-full h-1 bg-white/10 hover:h-2 transition-all cursor-pointer">

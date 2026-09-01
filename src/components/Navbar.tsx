@@ -1,17 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
   Search,
-  Music2,
   Radio,
   ListMusic,
   FolderOpen,
   Sliders,
   Moon,
-  Smartphone,
-  Monitor,
   Heart,
-  Sparkles,
-  Code2
+  Sparkles
 } from 'lucide-react';
 import { useMusicPlayer } from '../context/MusicPlayerContext';
 import { POPULAR_GENRES } from '../data/curatedTracks';
@@ -30,8 +26,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenPlaylistModal }) => {
     setSearchQuery,
     performSearch,
     isSearching,
-    isFlutterFrameMode,
-    setIsFlutterFrameMode,
     setIsEqualizerOpen,
     sleepTimer
   } = useMusicPlayer();
@@ -66,8 +60,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenPlaylistModal }) => {
     { id: 'search', label: 'Search', icon: <Search className="w-3.5 h-3.5" /> },
     { id: 'radio', label: 'Live Radio', icon: <Radio className="w-3.5 h-3.5" /> },
     { id: 'library', label: 'Collection', icon: <ListMusic className="w-3.5 h-3.5" /> },
-    { id: 'local', label: 'Local Audio', icon: <FolderOpen className="w-3.5 h-3.5" /> },
-    { id: 'flutter_code', label: 'Flutter Dart Code', icon: <Code2 className="w-3.5 h-3.5 text-[#D4AF37]" /> }
+    { id: 'local', label: 'Local Audio', icon: <FolderOpen className="w-3.5 h-3.5" /> }
   ];
 
   return (
@@ -80,8 +73,12 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenPlaylistModal }) => {
             onClick={() => setActiveTab('home')}
             className="flex items-center gap-3 cursor-pointer group flex-shrink-0"
           >
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#F27D26] to-[#D4AF37] flex items-center justify-center text-black shadow-lg shadow-[#F27D26]/20 group-hover:scale-105 transition duration-300">
-              <Music2 className="w-4 h-4 text-black stroke-[2.5]" />
+            <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center shadow-lg shadow-[#F27D26]/20 group-hover:scale-105 transition duration-300 ring-1 ring-white/10">
+              <img
+                src="/logo.png"
+                alt="Gala Sang"
+                className="w-full h-full object-cover"
+              />
             </div>
             <div className="hidden sm:flex flex-col">
               <span className="font-serif italic text-lg tracking-tight text-white flex items-center gap-2">
@@ -137,30 +134,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenPlaylistModal }) => {
               className="p-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-[#F27D26] transition"
             >
               <Sliders className="w-4 h-4" />
-            </button>
-
-            {/* Flutter Mobile Frame Mode Toggle */}
-            <button
-              id="toggle-flutter-frame-btn"
-              onClick={() => setIsFlutterFrameMode(!isFlutterFrameMode)}
-              title={isFlutterFrameMode ? 'Switch to Full Desktop View' : 'Switch to Flutter Mobile Frame'}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 border transition ${
-                isFlutterFrameMode
-                  ? 'bg-[#F27D26]/20 border-[#F27D26]/40 text-[#F27D26] shadow-md shadow-[#F27D26]/10'
-                  : 'bg-white/5 hover:bg-white/10 border-white/10 text-white/70 hover:text-white'
-              }`}
-            >
-              {isFlutterFrameMode ? (
-                <>
-                  <Monitor className="w-3.5 h-3.5" />
-                  <span className="hidden md:inline">Desktop</span>
-                </>
-              ) : (
-                <>
-                  <Smartphone className="w-3.5 h-3.5 text-[#F27D26]" />
-                  <span className="hidden md:inline">Flutter UI</span>
-                </>
-              )}
             </button>
           </div>
         </div>
