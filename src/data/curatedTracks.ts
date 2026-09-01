@@ -774,6 +774,42 @@ export const ENGLISH_TOP_100: Track[] = [
     "source": "jiosaavn"
   },
   {
+    "id": "eng-B8zj6Yv2",
+    "title": "Viva La Vida",
+    "artist": "Coldplay",
+    "album": "Viva La Vida or Death and All His Friends",
+    "artwork": "https://c.saavncdn.com/454/Viva-La-Vida-or-Death-and-All-His-Friends-English-2008-20201104172143-500x500.jpg",
+    "audioUrl": "https://aac.saavncdn.com/454/edef7264edaa0c1a4cc49445edec1fb1_320.mp4",
+    "duration": 242,
+    "genre": "Alternative Rock",
+    "releaseYear": 2008,
+    "source": "jiosaavn"
+  },
+  {
+    "id": "eng-JuFEzYZR",
+    "title": "End of Beginning",
+    "artist": "Djo",
+    "album": "DECIDE",
+    "artwork": "https://c.saavncdn.com/336/DECIDE-English-2022-20221205093021-500x500.jpg",
+    "audioUrl": "https://aac.saavncdn.com/336/89411dade7a62c01c544ce637c3d4079_320.mp4",
+    "duration": 159,
+    "genre": "Synth-Pop",
+    "releaseYear": 2022,
+    "source": "jiosaavn"
+  },
+  {
+    "id": "eng-CyOSypJc",
+    "title": "Daylight",
+    "artist": "David Kushner",
+    "album": "Daylight",
+    "artwork": "https://c.saavncdn.com/988/Daylight-English-2023-20250214140139-500x500.jpg",
+    "audioUrl": "https://aac.saavncdn.com/988/111c027494c4e9fcd61f7773b53a7209_320.mp4",
+    "duration": 212,
+    "genre": "Alternative",
+    "releaseYear": 2023,
+    "source": "jiosaavn"
+  },
+  {
     "id": "eng-3CC5nkpg",
     "title": "Naked",
     "artist": "James Arthur",
