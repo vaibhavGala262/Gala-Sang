@@ -12,7 +12,7 @@ interface LibraryViewProps {
 export const LibraryView: React.FC<LibraryViewProps> = ({ onOpenCreatePlaylist }) => {
   const {
     playlists,
-    favoriteTrackIds,
+    favoriteTracks,
     recentlyPlayed,
     queue,
     playTrack,
@@ -23,17 +23,16 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onOpenCreatePlaylist }
   const [selectedTab, setSelectedTab] = useState<'playlists' | 'favorites' | 'history'>('playlists');
   const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
 
-  // Collect all favorited tracks from curated, queue, recentlyPlayed, and playlists
+  // Ensure any favorited tracks resolve to full track objects so they persist and render
   const allKnownTracks = [
     ...CURATED_TRACKS,
     ...recentlyPlayed,
     ...queue,
     ...playlists.flatMap(p => p.tracks)
   ];
-  
-  const favoriteTracks: Track[] = favoriteTrackIds
-    .map(id => allKnownTracks.find(t => t.id === id))
-    .filter((t): t is Track => !!t)
+
+  const favoriteTracksResolved: Track[] = favoriteTracks
+    .map(t => allKnownTracks.find(tk => tk.id === t.id) ?? t)
     // Remove duplicates
     .filter((track, index, self) => index === self.findIndex(t => t.id === track.id));
 
@@ -70,7 +69,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onOpenCreatePlaylist }
             }`}
           >
             <Heart className="w-4 h-4 fill-current" />
-            Favorites ({favoriteTrackIds.length})
+            Favorites ({favoriteTracks.length})
           </button>
           <button
             onClick={() => {
@@ -201,17 +200,17 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onOpenCreatePlaylist }
       ) : selectedTab === 'favorites' ? (
         /* Favorites Tab */
         <div className="flex flex-col gap-1.5 bg-slate-900/40 p-3 rounded-3xl border border-slate-800">
-          {favoriteTracks.length === 0 ? (
+          {favoriteTracksResolved.length === 0 ? (
             <div className="text-center py-12 text-slate-500 text-xs">
               No favorite songs added yet. Heart any song while listening!
             </div>
           ) : (
-            favoriteTracks.map((track, idx) => (
+            favoriteTracksResolved.map((track, idx) => (
               <TrackRow
                 key={track.id}
                 track={track}
                 index={idx}
-                trackList={favoriteTracks}
+                trackList={favoriteTracksResolved}
               />
             ))
           )}

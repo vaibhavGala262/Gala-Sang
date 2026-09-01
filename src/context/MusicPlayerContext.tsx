@@ -23,7 +23,7 @@ interface MusicPlayerContextType {
   visualizerMode: VisualizerMode;
   sleepTimer: SleepTimerState;
   playlists: Playlist[];
-  favoriteTrackIds: string[];
+  favoriteTracks: Track[];
   recentlyPlayed: Track[];
   localTracks: Track[];
   activeTab: ActiveTab;
@@ -182,12 +182,22 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   });
 
   // User Library & Lists
-  const [favoriteTrackIds, setFavoriteTrackIds] = useState<string[]>(() => {
+  const [favoriteTracks, setFavoriteTracks] = useState<Track[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_FAVORITES_KEY);
-      return saved ? JSON.parse(saved) : ['bolly-kesariya', 'eng-blinding'];
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      // Backward-compat: old format was an array of ID strings. If so, hydrate
+      // from the curated catalog so previously favorited songs don't disappear.
+      if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'string') {
+        return parsed
+          .map((id) => CURATED_TRACKS.find((t) => t.id === id))
+          .filter((t): t is Track => !!t);
+      }
+      if (Array.isArray(parsed)) return parsed;
+      return [];
     } catch {
-      return ['bolly-kesariya'];
+      return [];
     }
   });
 
@@ -414,9 +424,9 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // Save favorites to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_FAVORITES_KEY, JSON.stringify(favoriteTrackIds));
+      localStorage.setItem(STORAGE_FAVORITES_KEY, JSON.stringify(favoriteTracks));
     } catch {}
-  }, [favoriteTrackIds]);
+  }, [favoriteTracks]);
 
   // Save playlists to localStorage
   useEffect(() => {
@@ -739,18 +749,18 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, []);
 
   const toggleFavorite = useCallback((track: Track) => {
-    setFavoriteTrackIds(prev => {
-      if (prev.includes(track.id)) {
-        return prev.filter(id => id !== track.id);
+    setFavoriteTracks(prev => {
+      if (prev.some(t => t.id === track.id)) {
+        return prev.filter(t => t.id !== track.id);
       } else {
-        return [...prev, track.id];
+        return [...prev, track];
       }
     });
   }, []);
 
   const isFavorite = useCallback((trackId: string) => {
-    return favoriteTrackIds.includes(trackId);
-  }, [favoriteTrackIds]);
+    return favoriteTracks.some(t => t.id === trackId);
+  }, [favoriteTracks]);
 
   const createPlaylist = useCallback((name: string, description = '') => {
     const newPl: Playlist = {
@@ -857,7 +867,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         visualizerMode,
         sleepTimer,
         playlists,
-        favoriteTrackIds,
+        favoriteTracks,
         recentlyPlayed,
         localTracks,
         activeTab,
