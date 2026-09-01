@@ -291,18 +291,6 @@ export const BOLLYWOOD_TOP_HITS: Track[] = [
     "source": "jiosaavn"
   },
   {
-    "id": "jio-Cyu6QA-C",
-    "title": "Kabira",
-    "artist": "Pritam, Tochi Raina, Rekha Bhardwaj",
-    "album": "Yeh Jawaani Hai Deewani",
-    "artwork": "https://c.saavncdn.com/440/Yeh-Jawaani-Hai-Deewani-2013-500x500.jpg",
-    "audioUrl": "https://aac.saavncdn.com/440/664097ba2ddb94e9a8c9e9527b3010ec_320.mp4",
-    "duration": 224,
-    "releaseYear": 2013,
-    "genre": "Bollywood & Desi",
-    "source": "jiosaavn"
-  },
-  {
     "id": "jio-csaEsVWV",
     "title": "Kun Faaya Kun",
     "artist": "A.R. Rahman, Javed Ali, Mohit Chauhan",

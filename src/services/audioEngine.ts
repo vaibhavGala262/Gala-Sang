@@ -14,6 +14,10 @@ class AudioEngine {
   private filter3600: BiquadFilterNode | null = null;
   private filter14000: BiquadFilterNode | null = null;
 
+  // Auto-pan (left ↔ right sweep): sine LFO driving the stereo panner
+  private panLfo: OscillatorNode | null = null;
+  private panLfoGain: GainNode | null = null;
+
   private isInitialized = false;
   private audioElement: HTMLAudioElement | null = null;
   private isSourceConnected = false;
@@ -74,9 +78,20 @@ class AudioEngine {
         this.filter14000.frequency.value = 14000;
       }
 
-      // Spatial panner
+      // Stereo panner + gentle sine LFO for auto left↔right sweep
       if (this.ctx.createStereoPanner && !this.pannerNode) {
         this.pannerNode = this.ctx.createStereoPanner();
+
+        this.panLfo = this.ctx.createOscillator();
+        this.panLfo.type = 'sine';
+        this.panLfo.frequency.value = 0.15; // one full L→R→L sweep every ~6.7s
+
+        this.panLfoGain = this.ctx.createGain();
+        this.panLfoGain.gain.value = 0;
+
+        this.panLfo.connect(this.panLfoGain);
+        this.panLfoGain.connect(this.pannerNode.pan);
+        this.panLfo.start();
       }
 
       this.isInitialized = true;
@@ -88,6 +103,64 @@ class AudioEngine {
   public resume() {
     if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume().catch(() => {});
+    }
+  }
+
+  // Route the <audio> element through the Web Audio graph:
+  // source → EQ filters → panner → analyser → gain → destination
+  public connect(audioEl: HTMLAudioElement) {
+    if (!this.ctx) return;
+
+    const wiredEl = this.sourceNode ? (this.sourceNode as MediaElementAudioSourceNode).mediaElement : null;
+    if (this.isSourceConnected && wiredEl === audioEl) return;
+
+    // A different element is now presented (e.g. React StrictMode remount):
+    // tear down the previous source node and rebuild for the new element.
+    if (this.sourceNode) {
+      try { this.sourceNode.disconnect(); } catch {}
+      this.sourceNode = null;
+      this.isSourceConnected = false;
+    }
+
+    try {
+      this.sourceNode = this.ctx.createMediaElementSource(audioEl);
+      if (!this.filter60 || !this.filter230 || !this.filter910 || !this.filter3600 || !this.filter14000 || !this.analyserNode || !this.gainNode) {
+        return;
+      }
+
+      this.sourceNode.connect(this.filter60);
+      this.filter60.connect(this.filter230);
+      this.filter230.connect(this.filter910);
+      this.filter910.connect(this.filter3600);
+      this.filter3600.connect(this.filter14000);
+
+      if (this.pannerNode) {
+        this.filter14000.connect(this.pannerNode);
+        this.pannerNode.connect(this.analyserNode);
+      } else {
+        this.filter14000.connect(this.analyserNode);
+      }
+
+      this.analyserNode.connect(this.gainNode);
+      this.gainNode.connect(this.ctx.destination);
+
+      this.isSourceConnected = true;
+      console.info('[AudioEngine] Web Audio EQ graph wired to audio element');
+    } catch (e) {
+      console.warn('Audio graph wiring failed; falling back to direct output:', e);
+      try {
+        this.sourceNode?.connect(this.ctx.destination);
+      } catch {}
+    }
+  }
+
+  // Toggle the auto left↔right pan (sine LFO driving the stereo panner)
+  public setAutoPan(on: boolean) {
+    if (!this.panLfoGain || !this.pannerNode || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    this.panLfoGain.gain.setTargetAtTime(on ? 1 : 0, now, 0.2);
+    if (!on) {
+      this.pannerNode.pan.setTargetAtTime(0, now, 0.2);
     }
   }
 
@@ -153,4 +226,3 @@ class AudioEngine {
 }
 
 export const audioEngine = new AudioEngine();
-

@@ -11,11 +11,11 @@ export const EqualizerModal: React.FC = () => {
     equalizerBands,
     equalizerPreset,
     bassBoost,
-    is3DAudio,
+    isAutoPan,
     setEqualizerPreset,
     setBandGain,
     setBassBoost,
-    toggle3DAudio
+    toggleAutoPan
   } = useMusicPlayer();
 
   if (!isEqualizerOpen) return null;
@@ -139,25 +139,25 @@ export const EqualizerModal: React.FC = () => {
             />
           </div>
 
-          {/* 3D Spatial Concert */}
+          {/* Auto-Pan Left ↔ Right */}
           <div className="bg-[#050505] border border-white/10 rounded-2xl p-4 flex items-center justify-between">
             <div className="flex flex-col">
               <span className="text-xs font-semibold text-white/80 flex items-center gap-1.5">
                 <Waves className="w-4 h-4 text-[#D4AF37]" />
-                3D Spatial Sound
+                Auto-Pan (L ↔ R)
               </span>
-              <span className="text-[11px] text-white/40">Simulate wide concert acoustics</span>
+              <span className="text-[11px] text-white/40">Gentle left → right stereo sweep</span>
             </div>
             <button
-              id="toggle-3d-audio-btn"
-              onClick={toggle3DAudio}
+              id="toggle-autopan-btn"
+              onClick={toggleAutoPan}
               className={`w-12 h-6 rounded-full transition-colors relative flex items-center px-1 ${
-                is3DAudio ? 'bg-[#F27D26]' : 'bg-white/10'
+                isAutoPan ? 'bg-[#F27D26]' : 'bg-white/10'
               }`}
             >
               <div
                 className={`w-4 h-4 rounded-full bg-white transition-transform ${
-                  is3DAudio ? 'translate-x-6' : 'translate-x-0'
+                  isAutoPan ? 'translate-x-6' : 'translate-x-0'
                 }`}
               />
             </button>

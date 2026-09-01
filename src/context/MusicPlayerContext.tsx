@@ -19,7 +19,7 @@ interface MusicPlayerContextType {
   equalizerBands: EqualizerBands;
   equalizerPreset: string;
   bassBoost: number;
-  is3DAudio: boolean;
+  isAutoPan: boolean;
   visualizerMode: VisualizerMode;
   sleepTimer: SleepTimerState;
   playlists: Playlist[];
@@ -49,7 +49,7 @@ interface MusicPlayerContextType {
   setEqualizerPreset: (presetName: string) => void;
   setBandGain: (band: keyof EqualizerBands, gain: number) => void;
   setBassBoost: (boost: number) => void;
-  toggle3DAudio: () => void;
+  toggleAutoPan: () => void;
   setVisualizerMode: (mode: VisualizerMode) => void;
   setSleepTimerMinutes: (minutes: number) => void;
   cancelSleepTimer: () => void;
@@ -171,7 +171,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     presence: 0
   });
   const [bassBoost, setBassBoostState] = useState<number>(0);
-  const [is3DAudio, setIs3DAudio] = useState<boolean>(false);
+  const [isAutoPan, setIsAutoPan] = useState<boolean>(false);
   const [visualizerMode, setVisualizerMode] = useState<VisualizerMode>('bars');
 
   // Sleep Timer
@@ -246,7 +246,9 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   useEffect(() => {
     const audio = new Audio();
     audio.preload = 'auto';
-    // Do not set audio.crossOrigin = 'anonymous' to prevent CORS block on radio streams
+    // crossOrigin='anonymous' is required for the Web Audio graph to receive
+    // real samples from this element (src servers confirm ACAO: *).
+    audio.crossOrigin = 'anonymous';
     audioRef.current = audio;
 
     const handleTimeUpdate = () => {
@@ -302,6 +304,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     audio.addEventListener('pause', handlePause);
 
     audioEngine.init(audio);
+    audioEngine.connect(audio);
 
     return () => {
       audio.pause();
@@ -433,6 +436,11 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   useEffect(() => {
     audioEngine.setBands(equalizerBands, bassBoost);
   }, [equalizerBands, bassBoost]);
+
+  // Toggle the auto left↔right pan effect
+  useEffect(() => {
+    audioEngine.setAutoPan(isAutoPan);
+  }, [isAutoPan]);
 
   // Sleep Timer countdown ticker
   useEffect(() => {
@@ -694,7 +702,6 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setEqualizerPresetState(preset.name);
       setEqualizerBands(preset.bands);
       setBassBoostState(preset.bassBoost || 0);
-      setIs3DAudio(!!preset.spatial3D);
     }
   }, []);
 
@@ -710,8 +717,8 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setBassBoostState(boost);
   }, []);
 
-  const toggle3DAudio = useCallback(() => {
-    setIs3DAudio(prev => !prev);
+  const toggleAutoPan = useCallback(() => {
+    setIsAutoPan(prev => !prev);
   }, []);
 
   const setSleepTimerMinutes = useCallback((minutes: number) => {
@@ -846,7 +853,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         equalizerBands,
         equalizerPreset,
         bassBoost,
-        is3DAudio,
+        isAutoPan,
         visualizerMode,
         sleepTimer,
         playlists,
@@ -875,7 +882,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setEqualizerPreset,
         setBandGain,
         setBassBoost,
-        toggle3DAudio,
+        toggleAutoPan,
         setVisualizerMode,
         setSleepTimerMinutes,
         cancelSleepTimer,
