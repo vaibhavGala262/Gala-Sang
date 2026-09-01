@@ -810,6 +810,42 @@ export const ENGLISH_TOP_100: Track[] = [
     "source": "jiosaavn"
   },
   {
+    "id": "eng-4uosXgHd",
+    "title": "Put Your Head on My Shoulder",
+    "artist": "Paul Anka",
+    "album": "Put Your Head on My Shoulder",
+    "artwork": "https://c.saavncdn.com/625/Put-Your-Head-on-My-Shoulder-English-2013-500x500.jpg",
+    "audioUrl": "https://aac.saavncdn.com/625/9e3250d156f2f6cfe95cf455f908d90f_320.mp4",
+    "duration": 162,
+    "genre": "Classic Pop",
+    "releaseYear": 1959,
+    "source": "jiosaavn"
+  },
+  {
+    "id": "eng-uR6FKV-v",
+    "title": "Papa",
+    "artist": "Paul Anka",
+    "album": "Anka",
+    "artwork": "https://c.saavncdn.com/152/Anka-English-2011-20250315020525-500x500.jpg",
+    "audioUrl": "https://aac.saavncdn.com/152/d30c58465ffba00c2ca144e6410ee852_320.mp4",
+    "duration": 204,
+    "genre": "Classic Pop",
+    "releaseYear": 1964,
+    "source": "jiosaavn"
+  },
+  {
+    "id": "eng-3aPI3gLh",
+    "title": "I Love You Baby",
+    "artist": "Paul Anka",
+    "album": "Paul Anka Collection",
+    "artwork": "https://c.saavncdn.com/301/Paul-Anka-Collection-English-2011-500x500.jpg",
+    "audioUrl": "https://aac.saavncdn.com/301/1ad14d591a1823d11c17e4c1c35201aa_320.mp4",
+    "duration": 145,
+    "genre": "Classic Pop",
+    "releaseYear": 1957,
+    "source": "jiosaavn"
+  },
+  {
     "id": "eng-3CC5nkpg",
     "title": "Naked",
     "artist": "James Arthur",
