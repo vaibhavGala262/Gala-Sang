@@ -581,10 +581,10 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       } catch {}
     }
 
-    // Add to history
+    // Add to history (most-recent-first, deduped, capped so it stays lightweight)
     setRecentlyPlayed(prev => {
       const filtered = prev.filter(t => t.id !== track.id);
-      return [track, ...filtered].slice(0, 50);
+      return [track, ...filtered].slice(0, 200);
     });
   }, [queue, sourcePool, playbackRate, isMuted, volume]);
 
@@ -692,25 +692,26 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   }, [queue, sourcePool, isShuffled, repeatMode, playTrack, pause]);
 
+  // Spotify-style back button: after >3s of the current song it restarts the
+  // song; otherwise it steps back to the previously played song from history —
+  // regardless of the visible queue — so the user can retrace what they listened to.
   const previousTrack = useCallback(() => {
-    if (queue.length === 0) return;
+    const current = currentTrackRef.current;
+    if (!current) return;
 
     if (currentTime > 3) {
       seek(0);
       return;
     }
 
-    let prevIdx = queueIndex - 1;
-    if (prevIdx < 0) {
-      prevIdx = queue.length - 1;
+    const history = recentlyPlayed;
+    const idx = history.findIndex(t => t.id === current.id);
+    if (idx >= 0 && idx + 1 < history.length) {
+      playTrack(history[idx + 1]);
+    } else {
+      seek(0);
     }
-
-    const prevSong = queue[prevIdx];
-    if (prevSong) {
-      setQueueIndex(prevIdx);
-      playTrack(prevSong);
-    }
-  }, [queue, queueIndex, currentTime, playTrack]);
+  }, [currentTime, recentlyPlayed, playTrack]);
 
   const seek = useCallback((seconds: number) => {
     setCurrentTime(seconds);

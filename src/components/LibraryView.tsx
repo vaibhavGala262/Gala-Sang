@@ -83,7 +83,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onOpenCreatePlaylist }
             }`}
           >
             <History className="w-4 h-4" />
-            Recently Played
+            History
           </button>
         </div>
 
@@ -220,7 +220,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onOpenCreatePlaylist }
         <div className="flex flex-col gap-1.5 bg-slate-900/40 p-3 rounded-3xl border border-slate-800">
           {recentlyPlayed.length === 0 ? (
             <div className="text-center py-12 text-slate-500 text-xs">
-              No recently played songs yet.
+              Nothing played yet — songs you listen to will show up here. Press the previous
+              (⏮) button anytime to walk back through this list, Spotify-style.
             </div>
           ) : (
             recentlyPlayed.map((track, idx) => (
