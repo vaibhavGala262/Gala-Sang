@@ -80,7 +80,7 @@ export const TrackCard: React.FC<TrackCardProps> = ({
             LIVE
           </div>
         ) : track.genre ? (
-          <div className="absolute top-2 left-2 px-2.5 py-0.5 rounded-full bg-black/80 backdrop-blur-md text-white/70 text-[10px] font-sans font-medium border border-white/10 truncate max-w-[calc(100%-5.5rem)]">
+          <div className="absolute top-2 left-2 px-2.5 py-0.5 rounded-full bg-black/80 backdrop-blur-md text-white/70 text-[10px] font-sans font-medium border border-white/10 truncate max-w-[calc(100%-7.5rem)] hidden sm:block">
             {track.genre}
           </div>
         ) : null}
