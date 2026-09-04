@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { Track, Playlist, RepeatMode, VisualizerMode, EqualizerBands, SleepTimerState, ActiveTab } from '../types';
-import { CURATED_TRACKS, EQUALIZER_PRESETS, BOLLYWOOD_TOP_HITS, ENGLISH_TOP_HITS } from '../data/curatedTracks';
+import { CURATED_TRACKS, EQUALIZER_PRESETS, BOLLYWOOD_TOP_HITS, BOLLYWOOD_RETRO_CLASSICS, PUNJABI_SUPERHITS, ENGLISH_TOP_HITS, ENGLISH_TOP_100 } from '../data/curatedTracks';
 import { audioEngine } from '../services/audioEngine';
 import { searchGlobalSongs } from '../services/musicApi';
 
@@ -75,6 +75,21 @@ const MusicPlayerContext = createContext<MusicPlayerContextType | null>(null);
 const STORAGE_FAVORITES_KEY = 'free_song_player_favorites_v1';
 const STORAGE_PLAYLISTS_KEY = 'free_song_player_playlists_v1';
 const STORAGE_HISTORY_KEY = 'free_song_player_history_v1';
+
+// Language heuristic: our curated English tracks carry `eng-*` ids (or live in
+// ENGLISH_TOP_100). Everything else is treated as Hindi/regional.
+const isEnglishTrack = (track: Track | null): boolean => {
+  if (!track) return false;
+  if (track.id.startsWith('eng-')) return true;
+  return ENGLISH_TOP_100.some(t => t.id === track.id);
+};
+
+// When there is no active context list (fresh load, cleared "Up Next"), build a
+// same-language pool so auto-advance never jumps across languages.
+const buildSameLanguagePool = (seed: Track | null): Track[] =>
+  isEnglishTrack(seed)
+    ? ENGLISH_TOP_100
+    : [...BOLLYWOOD_TOP_HITS, ...PUNJABI_SUPERHITS, ...BOLLYWOOD_RETRO_CLASSICS];
 
 // High-Availability Backup Streams for 24/7 Live Radio Stations
 const RADIO_BACKUP_STREAMS: Record<string, string[]> = {
@@ -151,8 +166,16 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // Core Playback State
   const [currentTrack, setCurrentTrack] = useState<Track | null>(BOLLYWOOD_TOP_HITS[0]);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [queue, setQueue] = useState<Track[]>(CURATED_TRACKS);
-  const [queueIndex, setQueueIndex] = useState<number>(0);
+  // `queue` holds the visible "Up Next" list. It is seeded from the list a song
+  // is played from (search results, genre, favorites, playlist, etc.) — NOT the
+  // entire global catalog — so auto-advance stays in the same language/context.
+  const [queue, setQueue] = useState<Track[]>([]);
+  const [queueIndex, setQueueIndex] = useState<number>(-1);
+  // `sourcePool` remembers the world the current context belongs to, so that if
+  // the visible queue is trimmed/cleared we still advance within the same list.
+  const [sourcePool, setSourcePool] = useState<Track[]>([]);
+  // Track ids already heard this session — auto-advance skips them to avoid repeats.
+  const playedThisSessionRef = useRef<Set<string>>(new Set());
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(BOLLYWOOD_TOP_HITS[0]?.duration || 268);
   const [volume, setVolumeState] = useState<number>(0.85);
@@ -484,20 +507,31 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     } else {
       nextTrack();
     }
-  }, [repeatMode, queue, queueIndex, isShuffled]);
+  }, [repeatMode, queue, sourcePool, queueIndex, isShuffled]);
 
   // Play a specific track (Full length authentic audio engine)
   const playTrack = useCallback((track: Track, newQueue?: Track[]) => {
-    let targetQueue = newQueue || queue;
-    if (newQueue) {
+    if (newQueue && newQueue.length > 0) {
+      // New context: the visible "Up Next" queue AND the advancement pool both
+      // become this list, so auto-play stays inside the world the user picked.
       setQueue(newQueue);
-    } else if (!queue.some(t => t.id === track.id)) {
-      targetQueue = [track, ...queue];
-      setQueue(targetQueue);
+      setSourcePool(newQueue);
+      const nIdx = newQueue.findIndex(t => t.id === track.id);
+      setQueueIndex(nIdx >= 0 ? nIdx : 0);
+    } else if (sourcePool.some(t => t.id === track.id)) {
+      // Belongs to the advancement world even if trimmed from the visible queue.
+      const cIdx = queue.findIndex(t => t.id === track.id);
+      setQueueIndex(cIdx >= 0 ? cIdx : queueIndex);
+    } else if (queue.some(t => t.id === track.id)) {
+      // Replaying / "Up Next" click: stay inside the active context.
+      const cIdx = queue.findIndex(t => t.id === track.id);
+      setQueueIndex(cIdx);
+    } else {
+      // Foreign track (e.g., live search result, local upload): prepend it.
+      setQueue(prev => [track, ...prev]);
+      setSourcePool(prev => prev.some(t => t.id === track.id) ? prev : [track, ...prev]);
+      setQueueIndex(0);
     }
-
-    const idx = targetQueue.findIndex(t => t.id === track.id);
-    setQueueIndex(idx >= 0 ? idx : 0);
     setCurrentTrack(track);
     currentTrackRef.current = track;
     setCurrentTime(0);
@@ -552,7 +586,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const filtered = prev.filter(t => t.id !== track.id);
       return [track, ...filtered].slice(0, 50);
     });
-  }, [queue, playbackRate, isMuted, volume]);
+  }, [queue, sourcePool, playbackRate, isMuted, volume]);
 
   const togglePlay = useCallback(() => {
     if (isPlaying) {
@@ -590,29 +624,73 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [currentTrack]);
 
   const nextTrack = useCallback(() => {
-    if (queue.length === 0) return;
+    const current = currentTrackRef.current;
 
-    let nextIdx = queueIndex + 1;
-    if (isShuffled && queue.length > 1) {
-      nextIdx = Math.floor(Math.random() * queue.length);
-      if (nextIdx === queueIndex) {
-        nextIdx = (queueIndex + 1) % queue.length;
-      }
-    } else if (nextIdx >= queue.length) {
-      if (repeatMode === 'all') {
-        nextIdx = 0;
-      } else {
-        pause();
-        return;
-      }
+    // Advancement pool:
+    //  1. the visible "Up Next" list when it has more than one track,
+    //  2. otherwise the remembered context world (sourcePool),
+    //  3. otherwise a lazily-built same-language pool.
+    let pool: Track[] = [];
+    if (queue.length > 1) pool = queue;
+    else if (sourcePool.length > 0) pool = sourcePool;
+    else pool = buildSameLanguagePool(current);
+
+    if (pool.length === 0) {
+      pause();
+      return;
     }
 
-    const nextSong = queue[nextIdx];
-    if (nextSong) {
-      setQueueIndex(nextIdx);
-      playTrack(nextSong);
+    // Anything that auto-advances through is excluded from future picks.
+    const played = playedThisSessionRef.current;
+    if (current) played.add(current.id);
+
+    // Loop-based selection (avoids recursion / stack overflow when the pool
+    // only ever contains songs already heard this session).
+    const pickTarget = (): Track | null => {
+      for (;;) {
+        const unplayed = pool.filter(t => !played.has(t.id));
+        if (unplayed.length > 0) {
+          if (isShuffled) {
+            return unplayed[Math.floor(Math.random() * unplayed.length)] ?? null;
+          }
+          // Linear: walk forward from the current song, skipping heard tracks.
+          const ids = pool.map(t => t.id);
+          let pos = current ? ids.lastIndexOf(current.id) : -1;
+          pos = (pos + 1) % ids.length;
+          for (let k = 0; k <= ids.length; k++) {
+            if (!played.has(pool[pos].id)) return pool[pos];
+            pos = (pos + 1) % ids.length;
+          }
+          return pool[pos] ?? null;
+        }
+        // Every song in this pool has been heard this session.
+        if (repeatMode === 'off') return null;
+        // A pool that only ever contains the current track has nothing else to
+        // offer — stop rather than looping forever.
+        if (pool.length <= 1) return null;
+        played.clear();
+        if (current) played.add(current.id);
+      }
+    };
+
+    const target = pickTarget();
+    if (!target) {
+      pause();
+      return;
     }
-  }, [queue, queueIndex, isShuffled, repeatMode, playTrack, pause]);
+
+    const idxInQueue = queue.findIndex(t => t.id === target.id);
+    if (idxInQueue >= 0) {
+      setQueueIndex(idxInQueue);
+      playTrack(target);
+    } else {
+      // The visible queue was cleared/trimmed — rebuild it around the pool so
+      // the "Up Next" panel matches what is actually going to play next.
+      const nIdx = pool.findIndex(t => t.id === target.id);
+      setQueueIndex(nIdx >= 0 ? nIdx : 0);
+      playTrack(target, pool);
+    }
+  }, [queue, sourcePool, isShuffled, repeatMode, playTrack, pause]);
 
   const previousTrack = useCallback(() => {
     if (queue.length === 0) return;
@@ -807,6 +885,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const addLocalTracks = useCallback((tracks: Track[]) => {
     setLocalTracks(prev => [...tracks, ...prev]);
     setQueue(prev => [...tracks, ...prev]);
+    setSourcePool(prev => prev.length > 0 ? prev : [...tracks, ...prev]);
     if (tracks.length > 0) {
       playTrack(tracks[0]);
     }
@@ -830,11 +909,14 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, []);
 
   const removeFromQueue = useCallback((index: number) => {
+    const removed = queue[index];
+    // Removed songs are skipped by auto-advance for the rest of the session.
+    if (removed) playedThisSessionRef.current.add(removed.id);
     setQueue(prev => prev.filter((_, i) => i !== index));
     if (index < queueIndex) {
       setQueueIndex(prev => prev - 1);
     }
-  }, [queueIndex]);
+  }, [queueIndex, queue]);
 
   const clearQueue = useCallback(() => {
     if (currentTrack) {
