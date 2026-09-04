@@ -80,7 +80,7 @@ export const TrackCard: React.FC<TrackCardProps> = ({
             LIVE
           </div>
         ) : track.genre ? (
-          <div className="absolute top-2 left-2 px-2.5 py-0.5 rounded-full bg-black/80 backdrop-blur-md text-white/70 text-[10px] font-sans font-medium border border-white/10">
+          <div className="absolute top-2 left-2 px-2.5 py-0.5 rounded-full bg-black/80 backdrop-blur-md text-white/70 text-[10px] font-sans font-medium border border-white/10 truncate max-w-[calc(100%-5.5rem)]">
             {track.genre}
           </div>
         ) : null}
@@ -115,11 +115,8 @@ export const TrackCard: React.FC<TrackCardProps> = ({
         </div>
 
         {/* Quick Action Corner Buttons */}
-        <div className="absolute top-2 right-2 flex items-center gap-1">
-          <div className="transition-opacity">
-            <DownloadButton variant="card" track={track} />
-          </div>
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute top-2 right-2 flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+          <DownloadButton variant="card" track={track} />
           <button
             id={`fav-btn-${track.id}`}
             onClick={handleFavoriteClick}
@@ -143,7 +140,6 @@ export const TrackCard: React.FC<TrackCardProps> = ({
             </button>
           )}
           </div>
-        </div>
       </div>
 
       {/* Info Section */}
