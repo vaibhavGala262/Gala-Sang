@@ -3,6 +3,7 @@ import { Play, Pause, Heart, Plus, Music2, Radio } from 'lucide-react';
 import { Track } from '../types';
 import { useMusicPlayer } from '../context/MusicPlayerContext';
 import { formatTime } from '../utils/formatters';
+import { DownloadButton } from './DownloadButton';
 
 interface TrackCardProps {
   track: Track;
@@ -114,7 +115,11 @@ export const TrackCard: React.FC<TrackCardProps> = ({
         </div>
 
         {/* Quick Action Corner Buttons */}
-        <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute top-2 right-2 flex items-center gap-1">
+          <div className="transition-opacity">
+            <DownloadButton variant="card" track={track} />
+          </div>
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             id={`fav-btn-${track.id}`}
             onClick={handleFavoriteClick}
@@ -137,6 +142,7 @@ export const TrackCard: React.FC<TrackCardProps> = ({
               <Plus className="w-3.5 h-3.5" />
             </button>
           )}
+          </div>
         </div>
       </div>
 

@@ -3,6 +3,7 @@ import { Play, Pause, Heart, Plus, Trash2, Radio, Music } from 'lucide-react';
 import { Track } from '../types';
 import { useMusicPlayer } from '../context/MusicPlayerContext';
 import { formatTime } from '../utils/formatters';
+import { DownloadButton } from './DownloadButton';
 
 interface TrackRowProps {
   track: Track;
@@ -112,6 +113,8 @@ export const TrackRow: React.FC<TrackRowProps> = ({
 
       {/* Actions */}
       <div className="flex items-center gap-1">
+        <DownloadButton variant="row" track={track} />
+
         <button
           id={`fav-row-btn-${track.id}`}
           onClick={(e) => {

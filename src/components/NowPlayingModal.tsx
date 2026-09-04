@@ -29,6 +29,7 @@ import { useMusicPlayer } from '../context/MusicPlayerContext';
 import { formatTime } from '../utils/formatters';
 import { AudioVisualizer } from './AudioVisualizer';
 import { LyricsViewer } from './LyricsViewer';
+import { DownloadButton } from './DownloadButton';
 
 export const NowPlayingModal: React.FC = () => {
   const {
@@ -372,6 +373,7 @@ export const NowPlayingModal: React.FC = () => {
                 {currentTrack.artist} • <span className="text-white/30">{currentTrack.album || 'Free Stream'}</span>
               </p>
             </div>
+            <DownloadButton variant="modal" track={currentTrack} />
             <button
               onClick={() => toggleFavorite(currentTrack)}
               aria-label="Favorite song"
