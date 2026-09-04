@@ -56,8 +56,12 @@ export async function searchGlobalSongs(query: string, limit = 40): Promise<Trac
 
   try {
     const encoded = encodeURIComponent(query.trim());
-    const url = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&n=${limit}&p=1&q=${encoded}&_marker=0`;
-    
+    // Dev: browsers cannot call JioSaavn directly (no CORS header) so we hit the
+    // Vite dev proxy. Prod: the Vercel serverless function (/api/search) proxies it.
+    const url = import.meta.env.DEV
+      ? `/jiosaavn/api.php?__call=search.getResults&_format=json&n=${limit}&p=1&q=${encoded}&_marker=0`
+      : `/api/search?q=${encoded}&n=${limit}`;
+
     const response = await fetch(url);
     if (!response.ok) {
       return curatedMatches.length > 0 ? curatedMatches : BOLLYWOOD_TOP_HITS;
