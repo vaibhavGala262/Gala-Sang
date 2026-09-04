@@ -38,39 +38,47 @@ function cleanHtmlEntities(str: string): string {
     .replace(/&gt;/g, '>');
 }
 
-// Search database and JioSaavn catalog, resolving all tracks to authentic full-length playback
-export async function searchGlobalSongs(query: string, limit = 40): Promise<Track[]> {
+// Search database and JioSaavn catalog, resolving all tracks to authentic full-length playback.
+// `page` enables incremental pagination (Load More); curated matches are only prepended on page 1.
+export async function searchGlobalSongs(query: string, limit = 40, page = 1): Promise<Track[]> {
   if (!query || query.trim().length === 0) {
-    return BOLLYWOOD_TOP_HITS;
+    return page === 1 ? BOLLYWOOD_TOP_HITS : [];
   }
 
   const cleanQuery = query.trim().toLowerCase();
 
   // 1. Check direct matches from curated Bollywood, Retro, Punjabi and Radio databases
-  const curatedMatches = CURATED_TRACKS.filter(
-    t => t.title.toLowerCase().includes(cleanQuery) ||
-         t.artist.toLowerCase().includes(cleanQuery) ||
-         (t.album && t.album.toLowerCase().includes(cleanQuery)) ||
-         (t.genre && t.genre.toLowerCase().includes(cleanQuery))
-  );
+  const curatedMatches = page === 1
+    ? CURATED_TRACKS.filter(
+        t => t.title.toLowerCase().includes(cleanQuery) ||
+             t.artist.toLowerCase().includes(cleanQuery) ||
+             (t.album && t.album.toLowerCase().includes(cleanQuery)) ||
+             (t.genre && t.genre.toLowerCase().includes(cleanQuery))
+      )
+    : [];
 
   try {
     const encoded = encodeURIComponent(query.trim());
     // Dev: browsers cannot call JioSaavn directly (no CORS header) so we hit the
     // Vite dev proxy. Prod: the Vercel serverless function (/api/search) proxies it.
     const url = import.meta.env.DEV
-      ? `/jiosaavn/api.php?__call=search.getResults&_format=json&n=${limit}&p=1&q=${encoded}&_marker=0`
-      : `/api/search?q=${encoded}&n=${limit}`;
+      ? `/jiosaavn/api.php?__call=search.getResults&_format=json&n=${limit}&p=${page}&q=${encoded}&_marker=0`
+      : `/api/search?q=${encoded}&n=${limit}&p=${page}`;
 
-    const response = await fetch(url);
+    let response = await fetch(url);
+    // JioSaavn throttles bursts with 502s — retry once after a short pause
+    if (response.status === 502 || response.status === 429) {
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      response = await fetch(url);
+    }
     if (!response.ok) {
-      return curatedMatches.length > 0 ? curatedMatches : BOLLYWOOD_TOP_HITS;
+      return page === 1 ? (curatedMatches.length > 0 ? curatedMatches : BOLLYWOOD_TOP_HITS) : [];
     }
 
     const text = await response.text();
     const data = JSON.parse(text.trim());
     if (!data.results || !Array.isArray(data.results)) {
-      return curatedMatches.length > 0 ? curatedMatches : BOLLYWOOD_TOP_HITS;
+      return page === 1 ? (curatedMatches.length > 0 ? curatedMatches : BOLLYWOOD_TOP_HITS) : [];
     }
 
     const fetchedTracks: Track[] = data.results
@@ -114,10 +122,10 @@ export async function searchGlobalSongs(query: string, limit = 40): Promise<Trac
       }
     }
 
-    return combined.length > 0 ? combined : (curatedMatches.length > 0 ? curatedMatches : BOLLYWOOD_TOP_HITS);
+    return combined.length > 0 ? combined : (curatedMatches.length > 0 ? curatedMatches : []);
   } catch (error) {
     console.warn('Live song search fallback to curated tracks:', error);
-    return curatedMatches.length > 0 ? curatedMatches : BOLLYWOOD_TOP_HITS;
+    return page === 1 ? (curatedMatches.length > 0 ? curatedMatches : BOLLYWOOD_TOP_HITS) : [];
   }
 }
 

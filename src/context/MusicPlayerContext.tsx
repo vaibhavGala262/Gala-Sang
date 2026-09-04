@@ -32,6 +32,8 @@ interface MusicPlayerContextType {
   searchQuery: string;
   searchResults: Track[];
   isSearching: boolean;
+  isSearchLoadingMore: boolean;
+  hasMoreSearch: boolean;
 
   // Actions
   playTrack: (track: Track, newQueue?: Track[]) => void;
@@ -65,6 +67,7 @@ interface MusicPlayerContextType {
   setIsEqualizerOpen: (val: boolean) => void;
   setSearchQuery: (query: string) => void;
   performSearch: (query: string) => Promise<void>;
+  loadMoreSearchResults: () => Promise<void>;
   addToQueue: (track: Track) => void;
   removeFromQueue: (index: number) => void;
   clearQueue: () => void;
@@ -269,6 +272,11 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [searchResults, setSearchResults] = useState<Track[]>(CURATED_TRACKS);
   const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [searchPage, setSearchPage] = useState<number>(1);
+  const [isSearchLoadingMore, setIsSearchLoadingMore] = useState<boolean>(false);
+  const [hasMoreSearch, setHasMoreSearch] = useState<boolean>(false);
+  const SEARCH_PAGE_SIZE = 40;
+  const SEARCH_MAX_RESULTS = 200;
 
   // Keep currentTrackRef in sync
   useEffect(() => {
@@ -894,9 +902,13 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const performSearch = useCallback(async (query: string) => {
     setIsSearching(true);
+    setSearchQuery(query);
+    setSearchPage(1);
+    setHasMoreSearch(false);
     try {
-      const results = await searchGlobalSongs(query);
+      const results = await searchGlobalSongs(query, SEARCH_PAGE_SIZE, 1);
       setSearchResults(results);
+      setHasMoreSearch(results.length > 0);
     } catch (e) {
       console.warn('Search failed:', e);
       setSearchResults(CURATED_TRACKS);
@@ -904,6 +916,28 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setIsSearching(false);
     }
   }, []);
+
+  const loadMoreSearchResults = useCallback(async () => {
+    const nextPage = searchPage + 1;
+    if (nextPage * SEARCH_PAGE_SIZE > SEARCH_MAX_RESULTS) return;
+    const q = searchQuery.trim();
+    if (!q) return;
+
+    setIsSearchLoadingMore(true);
+    try {
+      const more = await searchGlobalSongs(q, SEARCH_PAGE_SIZE, nextPage);
+      const seen = new Set(searchResults.map(t => t.id));
+      const fresh = more.filter(t => !seen.has(t.id));
+      setSearchResults([...searchResults, ...fresh]);
+      setSearchPage(nextPage);
+      setHasMoreSearch(fresh.length > 0 && (nextPage + 1) * SEARCH_PAGE_SIZE <= SEARCH_MAX_RESULTS);
+    } catch (e) {
+      console.warn('Search load more failed:', e);
+      setHasMoreSearch(false);
+    } finally {
+      setIsSearchLoadingMore(false);
+    }
+  }, [searchPage, searchQuery, searchResults]);
 
   const addToQueue = useCallback((track: Track) => {
     setQueue(prev => [...prev, track]);
@@ -959,6 +993,8 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         searchQuery,
         searchResults,
         isSearching,
+        isSearchLoadingMore,
+        hasMoreSearch,
 
         playTrack,
         togglePlay,
@@ -991,6 +1027,7 @@ export const MusicPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setIsEqualizerOpen,
         setSearchQuery,
         performSearch,
+        loadMoreSearchResults,
         addToQueue,
         removeFromQueue,
         clearQueue

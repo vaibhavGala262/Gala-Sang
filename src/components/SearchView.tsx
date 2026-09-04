@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Search, LayoutGrid, List, Music, Sparkles, Filter, Disc, Radio, Flame, Tv } from 'lucide-react';
 import { useMusicPlayer } from '../context/MusicPlayerContext';
 import { TrackCard } from './TrackCard';
@@ -28,10 +28,31 @@ export const SearchView: React.FC<SearchViewProps> = ({ onOpenPlaylistModal }) =
     searchQuery,
     setSearchQuery,
     performSearch,
-    isSearching
+    isSearching,
+    isSearchLoadingMore,
+    hasMoreSearch,
+    loadMoreSearchResults
   } = useMusicPlayer();
 
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // Infinite scroll: auto-load the next page as the user scrolls near the bottom
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMoreSearch && !isSearching && !isSearchLoadingMore) {
+          loadMoreSearchResults();
+        }
+      },
+      { rootMargin: '400px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMoreSearch, isSearching, isSearchLoadingMore, loadMoreSearchResults]);
 
   const handleTagClick = (tagQuery: string) => {
     setSearchQuery(tagQuery);
@@ -137,6 +158,37 @@ export const SearchView: React.FC<SearchViewProps> = ({ onOpenPlaylistModal }) =
           ))}
         </div>
       ) : null}
+
+      {/* Infinite scroll sentinel + Load More fallback (incremental, capped at 200 per query) */}
+      {!isSearching && searchResults.length > 0 && (
+        <div className="flex flex-col items-center gap-3" ref={sentinelRef}>
+          {isSearchLoadingMore && (
+            <div className="flex items-center gap-2 text-xs text-white/40">
+              <span className="w-4 h-4 border-2 border-[#F27D26]/30 border-t-[#F27D26] rounded-full animate-spin" />
+              Loading next page…
+            </div>
+          )}
+          {hasMoreSearch && (
+            <button
+              onClick={loadMoreSearchResults}
+              disabled={isSearchLoadingMore}
+              className={`px-6 py-2.5 rounded-full text-xs font-bold flex items-center gap-2 transition ${
+                isSearchLoadingMore
+                  ? 'bg-[#111111] text-white/40 cursor-wait'
+                  : 'bg-[#F27D26]/10 border border-[#F27D26]/30 text-[#F27D26] hover:bg-[#F27D26]/20 hover:border-[#F27D26]/50'
+              }`}
+            >
+              <Flame className="w-4 h-4" />
+              Load more songs ({searchResults.length} loaded / 200 max)
+            </button>
+          )}
+          {!hasMoreSearch && searchQuery.trim().length > 0 && (
+            <p className="text-[10px] text-white/30">
+              ✓ Reached the end of results (~{searchResults.length} songs)
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 };

@@ -16,13 +16,17 @@ export default async function handler(req: VercelReq, res: VercelRes): Promise<v
   const parsedN = typeof rawN === 'string' ? parseFloat(rawN) : Array.isArray(rawN) ? parseFloat(rawN[0] ?? '') : NaN;
   const n = Number.isFinite(parsedN) ? Math.min(Math.max(Math.floor(parsedN), 1), 100) : 40;
 
+  const rawP = req.query['p'];
+  const parsedP = typeof rawP === 'string' ? parseFloat(rawP) : Array.isArray(rawP) ? parseFloat(rawP[0] ?? '') : NaN;
+  const p = Number.isFinite(parsedP) ? Math.max(Math.floor(parsedP), 1) : 1;
+
   if (!q.trim()) {
     res.status(400).json({ error: 'missing query param q' });
     return;
   }
 
   const url =
-    `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&n=${n}&p=1&q=${encodeURIComponent(q)}&_marker=0`;
+    `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&n=${n}&p=${p}&q=${encodeURIComponent(q)}&_marker=0`;
 
   try {
     const upstream = await fetch(url, {
