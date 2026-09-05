@@ -236,12 +236,6 @@ class _DownloadsTab extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(color: Colors.white54, fontSize: 12),
               ),
-              Text(
-                t.audioUrl,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white24, fontSize: 10),
-              ),
             ],
           ),
           trailing: const Icon(Icons.check_circle_rounded, color: AppColors.accent, size: 20),

@@ -85,6 +85,20 @@ class GalaAudioHandler extends BaseAudioHandler with SeekHandler {
         ),
     ];
     queue.add(mediaQueue);
+
+    final index = current == null ? 0 : _queue.indexWhere((t) => t.id == current!.id);
+    final track = (index >= 0 && index < _queue.length) ? _queue[index] : (_queue.isNotEmpty ? _queue.first : null);
+    if (track != null) {
+      mediaItem.add(MediaItem(
+        id: track.id,
+        title: track.title,
+        artist: track.artist,
+        album: track.album,
+        duration: track.isRadio ? null : Duration(seconds: track.duration),
+        artUri: Uri.tryParse(track.artwork),
+      ));
+    }
+
     playbackState.add(_playbackStateFor(player.playbackEvent, playing: _playerPlaying));
   }
 
@@ -149,17 +163,15 @@ class GalaAudioHandler extends BaseAudioHandler with SeekHandler {
         if (playing) MediaControl.pause else MediaControl.play,
         MediaControl.skipToNext,
       ],
-      systemActions: const {
-        MediaAction.seek,
-        MediaAction.seekForward,
-        MediaAction.seekBackward,
-      },
+      systemActions: _isLive
+          ? const {MediaAction.stop}
+          : const {MediaAction.seek},
       androidCompactActionIndices: const [0, 1, 2],
       processingState: const {
         ProcessingState.idle: AudioProcessingState.idle,
         ProcessingState.loading: AudioProcessingState.loading,
         ProcessingState.buffering: AudioProcessingState.buffering,
-        ProcessingState.ready: AudioProcessingState.buffering,
+        ProcessingState.ready: AudioProcessingState.ready,
         ProcessingState.completed: AudioProcessingState.completed,
       }[player.processingState]!,
       playing: playing,

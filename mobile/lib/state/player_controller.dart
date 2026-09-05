@@ -10,9 +10,11 @@ import '../app_messenger.dart';
 import '../data/curated_tracks.dart';
 import '../models/playlist.dart';
 import '../models/track.dart';
+import '../services/audio_service_setup.dart';
 import '../services/download_service.dart';
 import '../services/gala_audio_handler.dart';
 import '../services/jiosaavn_api.dart';
+import '../services/notification_permission.dart';
 import '../services/storage.dart';
 
 /// Central app state mirroring the web app's MusicPlayerContext:
@@ -72,6 +74,7 @@ class PlayerController extends ChangeNotifier {
   static const int searchMaxResults = 200;
 
   int _historyPersistTimer = 0;
+  bool _warnedAboutMediaSession = false;
 
   String _keyOf(Track t) => '${t.title.toLowerCase().trim()}|${t.artist.toLowerCase().trim()}';
 
@@ -110,8 +113,28 @@ class PlayerController extends ChangeNotifier {
 
   // ---------------------------------------------------------------- playback
 
+  /// Android 13+ won't post the media notification without POST_NOTIFICATIONS,
+  /// so request it on first playback. Also surface it if the media session
+  /// failed to start (notification/lock-screen controls will be missing).
+  Future<void> _ensurePlaybackPermissions() async {
+    await ensureNotificationPermission();
+    if (!mediaSessionAvailable && !_warnedAboutMediaSession) {
+      _warnedAboutMediaSession = true;
+      appMessengerKey.currentState
+        ?..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text('Media controls unavailable: $mediaSessionError'),
+          duration: const Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xFF2A2A2A),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
+    }
+  }
+
   Future<void> playTrack(Track track, {List<Track>? list}) async {
     if (track.isRadio) return playRadio(track);
+    await _ensurePlaybackPermissions();
     final src = list ?? queue;
     _playedThisSession.add(track.id);
     queue = List.of(src);
@@ -133,6 +156,7 @@ class PlayerController extends ChangeNotifier {
   }
 
   Future<void> playRadio(Track station) async {
+    await _ensurePlaybackPermissions();
     queue = <Track>[station];
     currentIndex = 0;
     _recordHistory(station);
