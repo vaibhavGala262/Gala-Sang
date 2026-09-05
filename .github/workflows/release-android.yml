@@ -1,0 +1,84 @@
+name: Release Android APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-android
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+        working-directory: mobile
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+        working-directory: mobile
+
+      - name: Test
+        run: flutter test
+        working-directory: mobile
+
+      - name: Write release signing key from secrets
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_B64 }}" | base64 -d > android/app/gala-sang-release.jks
+          {
+            echo "storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}"
+            echo "keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}"
+            echo "keyAlias=gala-sang"
+            echo "storeFile=gala-sang-release.jks"
+          } > android/app/key.properties
+        working-directory: mobile
+
+      - name: Derive version name from tag
+        run: echo "VERSION_NAME=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      - name: Build release APK
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+          VERSION_NAME: ${{ env.VERSION_NAME }}
+        run: flutter build apk --release
+        working-directory: mobile
+
+      - name: Rename APK for distribution
+        run: cp build/app/outputs/flutter-apk/app-release.apk "${{ runner.temp }}/gala-sang.apk"
+        working-directory: mobile
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Gala Sang ${{ github.ref_name }}
+          body: |
+            ## Gala Sang ${{ github.ref_name }}
+
+            **Install:** download `gala-sang.apk`, tap it, allow "Install unknown apps", then Install.
+
+            **Updates install in place** — your downloads, favorites and history are kept across releases.
+          generate_release_notes: true
+          files: ${{ runner.temp }}/gala-sang.apk
+          fail_on_unmatched_files: true
