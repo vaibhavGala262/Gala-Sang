@@ -27,8 +27,8 @@ class DownloadProgress {
 }
 
 /// Chunked (2 MB Range) downloader that mirrors the web app's downloader.
-/// Files land in `<documents>/GalaSang/downloads/` and can be re-imported as
-/// local tracks.
+/// Files land in `<documents>/GalaSang/downloads/` and a small `manifest.json`
+/// records the track metadata so downloads are reliably recognised later.
 class DownloadService {
   static const int chunkSize = 2 * 1024 * 1024;
 
@@ -39,6 +39,8 @@ class DownloadService {
     return dir;
   }
 
+  File _manifestFile(Directory dir) => File('${dir.path}/manifest.json');
+
   String fileNameFor(Track t) {
     final artist = _safe(t.artist);
     final title = _safe(t.title);
@@ -48,89 +50,127 @@ class DownloadService {
   String _safe(String s) =>
       s.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
 
-  bool isDownloaded(Track t, {required Map<String, String> localPaths}) =>
-      localPaths[t.id] != null;
+  Future<void> _addManifestEntry(Directory dir, String path, Track t) async {
+    final f = _manifestFile(dir);
+    final Map<String, dynamic> map = <String, dynamic>{};
+    if (await f.exists()) {
+      final raw = await f.readAsString();
+      if (raw.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(raw);
+          if (decoded is Map<String, dynamic>) map.addAll(decoded);
+        } catch (_) {}
+      }
+    }
+    map[path.split(RegExp(r'[\\/]')).last] = <String, dynamic>{
+      'id': t.id,
+      'title': t.title,
+      'artist': t.artist,
+      'artwork': t.artwork,
+      'duration': t.duration,
+    };
+    await f.writeAsString(jsonEncode(map));
+  }
 
   /// Downloads [track] to a local file following the web behaviour: single
-  /// sequential 2 MB ranges, never concurrent.
+  /// sequential 2 MB ranges, never concurrent. Writes a manifest entry on
+  /// success so [listDownloaded] can resolve the track later.
   Future<File> downloadSong(
     Track track, {
     void Function(DownloadProgress progress)? onProgress,
   }) async {
     final dir = await _downloadsDir();
     final file = File('${dir.path}/${fileNameFor(track)}');
+
     if (await file.exists()) {
+      await _addManifestEntry(dir, file.path, track);
+      final len = await file.length();
       onProgress?.call(DownloadProgress(
           trackId: track.id,
-          received: await file.length(),
-          total: await file.length(),
+          received: len,
+          total: len,
           done: true,
           failed: false));
       return file;
     }
 
+    final client = HttpClient();
+    client.userAgent = 'GalaSang/1.0 (mobile)';
+    var totalBytes = 0;
+    var emittedBytes = 0;
     try {
       final uri = Uri.parse(track.audioUrl);
-      final client = HttpClient();
-      client.userAgent = 'GalaSang/1.0 (mobile)';
 
-      // Determine total size via the first range request (servers usually reply 206 + Content-Range).
-      final firstReq = await client.getUrl(uri);
-      firstReq.headers.set(HttpHeaders.rangeHeader, 'bytes=0-${chunkSize - 1}');
-      final firstResp = await firstReq.close();
-      if (firstResp.statusCode != 206 && firstResp.statusCode != 200) {
-        firstResp.drain<void>();
-        client.close();
-        throw HttpException('Unexpected status ${firstResp.statusCode}');
+      // Probe with a tiny Range to learn total size.
+      final probe = await client.getUrl(uri);
+      probe.headers.set(HttpHeaders.rangeHeader, 'bytes=0-0');
+      final probeResp = await probe.close();
+      if (probeResp.statusCode == 206) {
+        totalBytes = _parseTotal(probeResp.headers.value(HttpHeaders.contentRangeHeader));
+        await probeResp.drain<void>();
+      } else {
+        await probeResp.drain<void>();
       }
-      final total = _parseTotal(firstResp.headers.value(HttpHeaders.contentRangeHeader));
-      firstResp.drain<void>();
 
       final sink = file.openWrite();
-      var received = 0;
       var failed = false;
       var errorMsg = '';
 
-      void emit({bool done = false}) {
-        onProgress?.call(DownloadProgress(
-          trackId: track.id,
-          received: received,
-          total: total,
-          done: done,
-          failed: failed,
-          error: errorMsg,
-        ));
-      }
-
       try {
-        for (var start = 0; start < total || total == 0; start += chunkSize) {
-          final end = (total == 0) ? start + chunkSize - 1 : (start + chunkSize - 1).clamp(start, total - 1);
+        if (totalBytes > 0) {
+          for (var start = 0; start < totalBytes; start += chunkSize) {
+            final end = (start + chunkSize - 1) < totalBytes
+                ? start + chunkSize - 1
+                : totalBytes - 1;
+            final req = await client.getUrl(uri);
+            req.headers.set(HttpHeaders.rangeHeader, 'bytes=$start-$end');
+            final resp = await req.close();
+            if (resp.statusCode != 206 && resp.statusCode != 200) {
+              failed = true;
+              errorMsg = 'HTTP ${resp.statusCode} at byte $start';
+              await resp.drain<void>();
+              break;
+            }
+            await for (final chunk in resp) {
+              sink.add(chunk);
+              emittedBytes += chunk.length;
+              onProgress?.call(DownloadProgress(
+                trackId: track.id,
+                received: emittedBytes,
+                total: totalBytes,
+                done: false,
+                failed: false,
+              ));
+            }
+          }
+        } else {
+          // Server ignored Range (200): single full-body stream is fastest.
           final req = await client.getUrl(uri);
-          req.headers.set(
-              HttpHeaders.rangeHeader, total == 0 ? 'bytes=$start-' : 'bytes=$start-$end');
           final resp = await req.close();
-          if (resp.statusCode != 206 && resp.statusCode != 200) {
+          if (resp.statusCode != 200 && resp.statusCode != 206) {
             failed = true;
             errorMsg = 'HTTP ${resp.statusCode}';
             await resp.drain<void>();
-            break;
+          } else {
+            await for (final chunk in resp) {
+              sink.add(chunk);
+              emittedBytes += chunk.length;
+              onProgress?.call(DownloadProgress(
+                trackId: track.id,
+                received: emittedBytes,
+                total: 0,
+                done: false,
+                failed: false,
+              ));
+            }
           }
-          await for (final chunk in resp) {
-            sink.add(chunk);
-            received += chunk.length;
-            emit();
-          }
-          if (total == 0 && received > 0 && (received == 0)) break;
-          if (total == 0 && received > chunkSize * 2) break;
         }
-        if (!failed) {
-          emit(done: true);
-          // Restore the pad byte if a 200 (no-range) response was returned whole.
+
+        if (!failed && totalBytes > 0 && emittedBytes != totalBytes) {
+          failed = true;
+          errorMsg = 'Incomplete download ($emittedBytes / $totalBytes bytes)';
         }
       } on SocketException catch (e) {
-        failed = true;
-        errorMsg = e.message;
-      } on HttpException catch (e) {
         failed = true;
         errorMsg = e.message;
       } catch (e) {
@@ -141,10 +181,29 @@ class DownloadService {
       await sink.flush();
       await sink.close();
       client.close();
-      emit(done: !failed);
-      if (failed) throw HttpException(errorMsg);
+
+      if (failed) {
+        await file.delete().catchError((_) => file);
+        onProgress?.call(DownloadProgress(
+            trackId: track.id,
+            received: 0,
+            total: totalBytes,
+            done: true,
+            failed: true,
+            error: errorMsg));
+        throw HttpException(errorMsg);
+      }
+
+      await _addManifestEntry(dir, file.path, track);
+      onProgress?.call(DownloadProgress(
+          trackId: track.id,
+          received: emittedBytes,
+          total: emittedBytes,
+          done: true,
+          failed: false));
       return file;
     } catch (_) {
+      client.close();
       rethrow;
     }
   }
@@ -156,18 +215,61 @@ class DownloadService {
     return int.tryParse(match.group(1) ?? '') ?? 0;
   }
 
-  /// Lists already-downloaded local tracks (id -> absolute path).
-  Future<Map<String, String>> listDownloaded() async {
+  /// Lists already-downloaded local tracks, keyed by track id.
+  Future<Map<String, Track>> listDownloaded() async {
     final dir = await _downloadsDir();
-    final files = <String, String>{};
-    await for (final entity in dir.list()) {
-      if (entity is File && (entity.path.toLowerCase().endsWith('.m4a') ||
-          entity.path.toLowerCase().endsWith('.mp3') ||
-          entity.path.toLowerCase().endsWith('.aac'))) {
-        files[entity.path] = entity.path;
-      }
+    final out = <String, Track>{};
+
+    // Manifest records exact metadata for reliable matching.
+    final manifest = _manifestFile(dir);
+    if (await manifest.exists()) {
+      try {
+        final raw = await manifest.readAsString();
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) {
+          for (final MapEntry(:key, :value) in decoded.entries) {
+            if (value is! Map<String, dynamic>) continue;
+            final path = '${dir.path}/$key';
+            if (!await File(path).exists()) continue;
+            out[value['id'] as String? ?? path] = Track(
+              id: value['id'] as String? ?? 'local-${key.hashCode}',
+              title: value['title'] as String? ?? 'Downloaded song',
+              artist: value['artist'] as String? ?? 'Unknown',
+              artwork: value['artwork'] as String? ?? '',
+              audioUrl: path,
+              duration: (value['duration'] as num?)?.toInt() ?? 0,
+              isLocal: true,
+              source: 'local_download',
+            );
+          }
+        }
+      } catch (_) {}
     }
-    return files;
+
+    // Fallback: pick up files downloaded before manifest existed.
+    await for (final entity in dir.list()) {
+      if (entity is! File) continue;
+      final name = entity.path.split(RegExp(r'[\\/]')).last;
+      if (!name.toLowerCase().endsWith('.m4a')) continue;
+      final already = out.values.any((t) => t.audioUrl == entity.path);
+      if (already) continue;
+      final stripped = name.replaceFirst(RegExp(r'\.m4a$'), '');
+      final parts = stripped.split(RegExp(r'\s+-\s+'));
+      final artist = parts.length > 1 ? parts[0].trim() : 'Unknown';
+      final title = parts.length > 1 ? parts.sublist(1).join(' - ').trim() : stripped;
+      out['legacy-${name.hashCode}'] = Track(
+        id: 'legacy-${name.hashCode}',
+        title: title,
+        artist: artist,
+        artwork: '',
+        audioUrl: entity.path,
+        duration: 0,
+        isLocal: true,
+        source: 'local_download',
+      );
+    }
+
+    return out;
   }
 
   Future<String> saveFilename(String name) async {

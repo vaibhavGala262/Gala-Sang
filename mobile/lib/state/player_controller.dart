@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:io' as io;
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 
+import '../app_messenger.dart';
 import '../data/curated_tracks.dart';
 import '../models/playlist.dart';
 import '../models/track.dart';
@@ -55,6 +58,8 @@ class PlayerController extends ChangeNotifier {
   final Map<String, double> downloadProgress = <String, double>{};
   Set<String> downloadedKeys = <String>{};
   final Map<String, String> downloadErrors = <String, String>{};
+  Map<String, Track> downloadedTracks = <String, Track>{};
+  Map<String, int> downloadedSizes = <String, int>{};
 
   // ---- Search ----
   String searchQuery = '';
@@ -161,6 +166,20 @@ class PlayerController extends ChangeNotifier {
   void toggleRepeat() {
     repeat = repeat == 'off' ? 'all' : (repeat == 'all' ? 'one' : 'off');
     notifyListeners();
+    final label = switch (repeat) {
+      'one' => 'Repeat one · this song loops',
+      'all' => 'Repeat all · whole queue loops',
+      _ => 'Repeat off',
+    };
+    appMessengerKey.currentState
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(label),
+        duration: const Duration(milliseconds: 1500),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: const Color(0xFF2A2A2A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
   }
 
   /// Next track: repeat-one restarts; shuffle picks unplayed songs first;
@@ -326,17 +345,16 @@ class PlayerController extends ChangeNotifier {
   bool isDownloaded(Track t) => downloadedKeys.contains(_keyOf(t));
 
   Future<void> refreshDownloads() async {
-    final files = await downloadService.listDownloaded();
-    downloadedKeys = files.keys
-        .map((path) {
-          final name = path.split(RegExp(r'[\\/]')).last;
-          final titleArtist = name.replaceAll('.m4a', '').replaceAll('.mp3', '').replaceAll('.aac', '');
-          final parts = titleArtist.split(' - ');
-          if (parts.length != 2) return '';
-          return '${parts[0].trim().toLowerCase()}|${parts[1].trim().toLowerCase()}';
-        })
-        .where((k) => k.isNotEmpty)
-        .toSet();
+    final tracks = await downloadService.listDownloaded();
+    downloadedTracks = tracks;
+    downloadedKeys = tracks.values.map(_keyOf).toSet();
+    final sizes = <String, int>{};
+    for (final MapEntry(key: id, value: track) in tracks.entries) {
+      try {
+        sizes[id] = await io.File(track.audioUrl).length();
+      } catch (_) {}
+    }
+    downloadedSizes = sizes;
     notifyListeners();
   }
 

@@ -3,11 +3,36 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/track.dart';
 import '../state/player_controller.dart';
 import '../theme/app_theme.dart';
 
 class NowPlayingScreen extends StatelessWidget {
   const NowPlayingScreen({super.key});
+
+  Future<void> _startDownload(
+      BuildContext context, PlayerController player, Track track) async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(SnackBar(
+      content: Text('Downloading ${track.title}…'),
+      duration: const Duration(seconds: 2),
+    ));
+    await player.downloadTrack(track);
+    if (!context.mounted) return;
+    if (player.downloadErrors[track.id] != null) {
+      messenger.showSnackBar(SnackBar(
+        content: Text(
+            'Download failed: ${player.downloadErrors[track.id]}'),
+        backgroundColor: const Color(0xFF8B1E1E),
+      ));
+    } else {
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Downloaded ✓'),
+        duration: Duration(seconds: 2),
+      ));
+    }
+  }
 
   void _showAddToPlaylist(BuildContext context, PlayerController player, dynamic track) {
     showModalBottomSheet(
@@ -329,7 +354,10 @@ class NowPlayingScreen extends StatelessWidget {
                             onPressed: player.next,
                           ),
                           IconButton(
-                            icon: Icon(Icons.repeat_rounded,
+                            icon: Icon(
+                                player.repeat == 'one'
+                                    ? Icons.repeat_one_rounded
+                                    : Icons.repeat_rounded,
                                 color: player.repeat != 'off'
                                     ? AppColors.accent
                                     : Colors.white54),
@@ -366,25 +394,30 @@ class NowPlayingScreen extends StatelessWidget {
                                 ? const Icon(
                                     Icons.check_circle_rounded,
                                     color: AppColors.accent)
-                                : (dlProgress != null
-                                    ? SizedBox(
-                                        width: 24,
-                                        height: 24,
-                                        child: CircularProgressIndicator(
-                                          value: dlProgress,
-                                          strokeWidth: 2.5,
-                                          color: AppColors.accent,
-                                          backgroundColor:
-                                              Colors.white24,
-                                        ),
-                                      )
-                                    : const Icon(
-                                        Icons.download_rounded,
-                                        color: Colors.white70)),
+                                : (player.downloadErrors.containsKey(track.id)
+                                    ? const Tooltip(
+                                        message: 'Download failed — tap to retry',
+                                        child: Icon(Icons.error_outline_rounded,
+                                            color: Color(0xFFE05252)))
+                                    : (dlProgress != null
+                                        ? SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: CircularProgressIndicator(
+                                              value: dlProgress,
+                                              strokeWidth: 2.5,
+                                              color: AppColors.accent,
+                                              backgroundColor:
+                                                  Colors.white24,
+                                            ),
+                                          )
+                                        : const Icon(
+                                            Icons.download_rounded,
+                                            color: Colors.white70))),
                             onPressed: () {
                               if (!isDownloaded &&
                                   dlProgress == null) {
-                                player.downloadTrack(track);
+                                _startDownload(context, player, track);
                               }
                             },
                           ),

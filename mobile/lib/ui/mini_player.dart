@@ -94,6 +94,10 @@ class MiniPlayer extends StatelessWidget {
                           ),
                         ),
                         IconButton(
+                          icon: const Icon(Icons.skip_previous_rounded, color: AppColors.textPrimary, size: 26),
+                          onPressed: player.previous,
+                        ),
+                        IconButton(
                           icon: Icon(
                             player.isPlaying
                                 ? Icons.pause_circle_filled_rounded

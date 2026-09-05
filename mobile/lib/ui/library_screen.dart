@@ -33,24 +33,32 @@ class _LibraryScreenState extends State<LibraryScreen> {
               // sub-tabs
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    _Pill(
-                      label: 'Favorites',
-                      active: _tab == 0,
-                      onTap: () => setState(() => _tab = 0),
-                    ),
-                    _Pill(
-                      label: 'History',
-                      active: _tab == 1,
-                      onTap: () => setState(() => _tab = 1),
-                    ),
-                    _Pill(
-                      label: 'Playlists',
-                      active: _tab == 2,
-                      onTap: () => setState(() => _tab = 2),
-                    ),
-                  ],
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _Pill(
+                        label: 'Favorites',
+                        active: _tab == 0,
+                        onTap: () => setState(() => _tab = 0),
+                      ),
+                      _Pill(
+                        label: 'History',
+                        active: _tab == 1,
+                        onTap: () => setState(() => _tab = 1),
+                      ),
+                      _Pill(
+                        label: 'Downloads',
+                        active: _tab == 2,
+                        onTap: () => setState(() => _tab = 2),
+                      ),
+                      _Pill(
+                        label: 'Playlists',
+                        active: _tab == 3,
+                        onTap: () => setState(() => _tab = 3),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 6),
@@ -58,6 +66,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 child: switch (_tab) {
                   0 => _FavoritesTab(player: player),
                   1 => _HistoryTab(player: player),
+                  2 => _DownloadsTab(player: player),
                   _ => _PlaylistsTab(player: player),
                 },
               ),
@@ -175,6 +184,68 @@ class _HistoryTab extends StatelessWidget {
           subtitle: Text(t.artist, maxLines: 1, overflow: TextOverflow.ellipsis,
               style: const TextStyle(color: Colors.white54, fontSize: 12)),
           onTap: () => player.playTrack(t, list: List.of(hist)),
+        );
+      },
+    );
+  }
+}
+
+class _DownloadsTab extends StatelessWidget {
+  final PlayerController player;
+  const _DownloadsTab({required this.player});
+
+  static String _fmtSize(int bytes) {
+    if (bytes <= 0) return '';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final list = player.downloadedTracks.values.toList();
+    if (list.isEmpty) {
+      return const _EmptyHint(
+          icon: Icons.download_done_rounded,
+          message: 'No downloads yet.\nOpen a song → tap the download icon to save it offline.');
+    }
+    final totalBytes = player.downloadedSizes.values.fold<int>(0, (a, b) => a + b);
+    return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 120),
+      itemCount: list.length + 1,
+      itemBuilder: (ctx, i) {
+        if (i == 0) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: Text('${list.length} song${list.length == 1 ? '' : 's'} · ${_fmtSize(totalBytes)} saved on this phone',
+                style: const TextStyle(color: Colors.white38, fontSize: 12)),
+          );
+        }
+        final t = list[i - 1];
+        final size = player.downloadedSizes[t.id] ?? 0;
+        return ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          leading: _Art(t.artwork, 48),
+          title: Text(t.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${t.artist}  ·  ${_fmtSize(size)}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+              Text(
+                t.audioUrl,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white24, fontSize: 10),
+              ),
+            ],
+          ),
+          trailing: const Icon(Icons.check_circle_rounded, color: AppColors.accent, size: 20),
+          onTap: () => player.playTrack(t, list: List.of(list)),
         );
       },
     );

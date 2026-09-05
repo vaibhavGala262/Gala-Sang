@@ -136,7 +136,7 @@ class HomeScreen extends StatelessWidget {
 
   Widget _buildQuickRadios(BuildContext context, PlayerController player) {
     return SizedBox(
-      height: 80,
+      height: 88,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -148,7 +148,7 @@ class HomeScreen extends StatelessWidget {
             onTap: () => player.playRadio(radio),
             child: Container(
               width: 140,
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                   colors: [Color(0xFF3B0D11), Color(0xFF2A1A07)],
@@ -163,13 +163,14 @@ class HomeScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(Icons.radio_rounded,
-                      color: AppColors.accent, size: 20),
+                      color: AppColors.accent, size: 18),
                   const SizedBox(height: 6),
                   Text(
                     radio.title,
                     style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 12,
+                        fontSize: 11.5,
+                        height: 1.2,
                         fontWeight: FontWeight.w700),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:provider/provider.dart';
 
+import 'app_messenger.dart';
 import 'services/gala_audio_handler.dart';
 import 'state/player_controller.dart';
 import 'theme/app_theme.dart';
@@ -45,6 +46,7 @@ class GalaSangApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Gala Sang',
         debugShowCheckedModeBanner: false,
+        scaffoldMessengerKey: appMessengerKey,
         theme: AppTheme.dark(),
         home: const AppShell(),
       ),

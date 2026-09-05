@@ -33,7 +33,9 @@ class _AppShellState extends State<AppShell> {
         return Scaffold(
           body: Column(
             children: [
-              Expanded(child: _pages[_tab]),
+              Expanded(
+                child: SafeArea(top: true, bottom: true, child: _pages[_tab]),
+              ),
               if (player.currentTrack != null) const MiniPlayer(),
             ],
           ),
